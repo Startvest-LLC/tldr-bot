@@ -5,6 +5,22 @@ import { initDigestScheduler } from './services/digestScheduler.js';
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createServer } from 'http';
+
+// Health check server for Azure App Service
+const healthPort = process.env.PORT || 8080;
+const healthServer = createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'healthy', service: 'tldrbot' }));
+    } else {
+        res.writeHead(404);
+        res.end();
+    }
+});
+healthServer.listen(healthPort, () => {
+    console.log(`Health check server listening on port ${healthPort}`);
+});
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -137,6 +153,7 @@ process.on('unhandledRejection', error => {
 async function shutdown(signal) {
     console.log(`\n\n${signal} received. Shutting down gracefully...`);
 
+    healthServer.close();
     closeDatabase();
     client.destroy();
 
